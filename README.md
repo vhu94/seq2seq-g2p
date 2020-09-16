@@ -1,6 +1,6 @@
 # pytorch-seq2seq
 
-[![Build Status](https://travis-ci.org/vhu94/pytorch-seq2seq.svg?branch=master)](https://travis-ci.org/vhu94/pytorch-seq2seq)
+[![Build Status](https://travis-ci.org/vhu94/seq2seq-g2p.svg?branch=master)](https://travis-ci.org/vhu94/seq2seq-g2p)
 
 **[Documentation](https://ibm.github.io/pytorch-seq2seq/public/index.html)**
 
