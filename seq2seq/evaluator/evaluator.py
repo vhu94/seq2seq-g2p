@@ -35,7 +35,7 @@ class Evaluator(object):
         match = 0
         total = 0
 
-        device = None if torch.cuda.is_available() else -1
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         batch_iterator = torchtext.data.BucketIterator(
             dataset=data, batch_size=self.batch_size,
             sort=True, sort_key=lambda x: len(x.src),
@@ -45,16 +45,15 @@ class Evaluator(object):
 
         with torch.no_grad():
             for batch in batch_iterator:
-                input_variables, input_lengths  = getattr(batch, seq2seq.src_field_name)
-                target_variables = getattr(batch, seq2seq.tgt_field_name)
-
-                decoder_outputs, decoder_hidden, other = model(input_variables, input_lengths.tolist(), target_variables)
+                decoder_outputs, _, other = model(batch)
 
                 # Evaluation
+                loss.eval_batch(decoder_outputs, batch)
+
                 seqlist = other['sequence']
-                for step, step_output in enumerate(decoder_outputs):
+                target_variables = getattr(batch, seq2seq.tgt_field_name)
+                for step, _ in enumerate(decoder_outputs):
                     target = target_variables[:, step + 1]
-                    loss.eval_batch(step_output.view(target_variables.size(0), -1), target)
 
                     non_padding = target.ne(pad)
                     correct = seqlist[step].view(-1).eq(target).masked_select(non_padding).sum().item()
