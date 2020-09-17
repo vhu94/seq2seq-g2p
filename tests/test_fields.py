@@ -5,6 +5,7 @@ import torchtext
 
 from seq2seq.data import SourceField, TargetField
 
+
 class TestField(unittest.TestCase):
 
     def test_sourcefield(self):

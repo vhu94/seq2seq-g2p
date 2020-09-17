@@ -1,14 +1,14 @@
-import unittest
 import os
-import shutil
-
 import mock
+import shutil
+import unittest
+
 from mock import ANY
 
 from seq2seq.util import Checkpoint
 
-class TestCheckpoint(unittest.TestCase):
 
+class TestCheckpoint(unittest.TestCase):
     EXP_DIR = "test_experiment"
 
     def tearDown(self):
@@ -27,8 +27,8 @@ class TestCheckpoint(unittest.TestCase):
                                      '2017_05_23_10_47_29']
         latest_checkpoint = Checkpoint.get_latest_checkpoint(self.EXP_DIR)
         self.assertEqual(latest_checkpoint,
-                          os.path.join(self.EXP_DIR,
-                                       'checkpoints/2017_05_23_10_47_29'))
+                         os.path.join(self.EXP_DIR,
+                                      'checkpoints/2017_05_23_10_47_29'))
 
     @mock.patch('seq2seq.util.checkpoint.torch')
     @mock.patch('seq2seq.util.checkpoint.dill')

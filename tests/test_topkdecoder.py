@@ -1,15 +1,15 @@
-import unittest
-
 import torch
 import numpy as np
+import unittest
 
 from seq2seq.models import DecoderRNN, TopKDecoder
+
 
 class TestDecoderRNN(unittest.TestCase):
 
     @classmethod
-    def setUpClass(self):
-        self.vocab_size = 3
+    def setUpClass(cls):
+        cls.vocab_size = 3
 
     def test_init(self):
         decoder = DecoderRNN(self.vocab_size, 50, 16, 0, 1, input_dropout_p=0)
@@ -76,7 +76,7 @@ class TestDecoderRNN(unittest.TestCase):
             #   3. hidden state
             #   4. accumulated log likelihood
             #   5. beam number
-            batch_queue = [[(-1, sos, encoder_hidden[:,b,:].unsqueeze(1), 0, None)] for b in range(batch_size)]
+            batch_queue = [[(-1, sos, encoder_hidden[:, b, :].unsqueeze(1), 0, None)] for b in range(batch_size)]
             time_batch_queue = [batch_queue]
             batch_finished_seqs = [list() for _ in range(batch_size)]
             for t in range(max_len):
@@ -131,7 +131,7 @@ class TestDecoderRNN(unittest.TestCase):
             for b in range(batch_size):
                 precision_error = False
                 for k in range(beam_size - 1):
-                    if np.isclose(topk_scores[b][k], topk_scores[b][k+1]):
+                    if np.isclose(topk_scores[b][k], topk_scores[b][k + 1]):
                         precision_error = True
                         break
                 if precision_error:
@@ -141,4 +141,4 @@ class TestDecoderRNN(unittest.TestCase):
                     self.assertTrue(np.isclose(topk_scores[b][k], topk[b][k][-1][3]))
                     total_steps = topk_lengths[b][k]
                     for t in range(total_steps):
-                        self.assertEqual(topk_pred_symbols[t][b, k].data[0], topk[b][k][t+1][1]) # topk includes SOS
+                        self.assertEqual(topk_pred_symbols[t][b, k].data[0], topk[b][k][t + 1][1])  # topk includes SOS

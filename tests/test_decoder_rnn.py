@@ -4,6 +4,7 @@ import torch
 
 from seq2seq.models import DecoderRNN
 
+
 class TestDecoderRNN(unittest.TestCase):
 
     @classmethod

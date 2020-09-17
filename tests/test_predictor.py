@@ -7,6 +7,7 @@ from seq2seq.evaluator import Predictor
 from seq2seq.data import SourceField, TargetField
 from seq2seq.models import Seq2seq, EncoderRNN, DecoderRNN
 
+
 class TestPredictor(unittest.TestCase):
 
     @classmethod

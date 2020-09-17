@@ -102,7 +102,7 @@ class NLLLoss(Loss):
 
     _NAME = "Avg NLLLoss"
 
-    def __init__(self, weight=None, mask=None, reduction='elementwise_mean'):
+    def __init__(self, weight=None, mask=None, reduction='mean'):
         self.mask = mask
         self.reduction = reduction
         if mask is not None:
@@ -122,7 +122,7 @@ class NLLLoss(Loss):
         if isinstance(self.acc_loss, int):
             return 0
         loss = self.acc_loss.data.item()    # total loss for all batches
-        if self.reduction == 'elementwise_mean':
+        if self.reduction == 'mean':
             loss /= self.norm_term          # average loss per batch
         return loss
 

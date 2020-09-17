@@ -6,8 +6,8 @@ import torchtext
 import seq2seq
 from seq2seq.data import Seq2SeqDataset
 
-class TestDataset(unittest.TestCase):
 
+class TestDataset(unittest.TestCase):
     test_path = os.path.dirname(os.path.realpath(__file__))
     src_path = os.path.join(test_path, 'data/src.txt')
     tgt_path = os.path.join(test_path, 'data/tgt.txt')
@@ -35,7 +35,7 @@ class TestDataset(unittest.TestCase):
         self.assertTrue(hasattr(batch, 'index'))
 
     def test_init_FROM_LIST(self):
-        src_list = [['1','2','3'], ['4','5','6','7']]
+        src_list = [['1', '2', '3'], ['4', '5', '6', '7']]
         dataset = Seq2SeqDataset.from_list(src_list, dynamic=False)
 
         self.assertEqual(len(dataset), 2)

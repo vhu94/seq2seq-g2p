@@ -1,10 +1,10 @@
 import torch
-from torch.autograd import Variable
 
 CUDA = torch.cuda.is_available()
 
+
 def _inflate(tensor, times, dim):
-        """
+    """
         Given a tensor, 'inflates' it along the given dimension by replicating each slice specified number of times (in-place)
 
         Args:
@@ -35,9 +35,10 @@ def _inflate(tensor, times, dim):
             [torch.LongTensor of size 4x2]
 
         """
-        repeat_dims = [1] * tensor.dim()
-        repeat_dims[dim] = times
-        return tensor.repeat(*repeat_dims)
+    repeat_dims = [1] * tensor.dim()
+    repeat_dims[dim] = times
+    return tensor.repeat(*repeat_dims)
+
 
 class TopKDecoder(torch.nn.Module):
     r"""
@@ -88,7 +89,7 @@ class TopKDecoder(torch.nn.Module):
         inputs, batch_size, max_length = self.rnn._validate_args(inputs, encoder_hidden, encoder_outputs,
                                                                  teacher_forcing_ratio)
 
-        self.pos_index = Variable(torch.LongTensor(range(batch_size)) * self.k).view(-1, 1)
+        self.pos_index = (torch.LongTensor(range(batch_size)) * self.k).view(-1, 1)
 
         # Inflate the initial hidden states to be of size: b*k x h
         encoder_hidden = self.rnn._init_state(encoder_hidden)
@@ -111,11 +112,10 @@ class TopKDecoder(torch.nn.Module):
         sequence_scores = torch.Tensor(batch_size * self.k, 1)
         sequence_scores.fill_(-float('Inf'))
         sequence_scores.index_fill_(0, torch.LongTensor([i * self.k for i in range(0, batch_size)]), 0.0)
-        sequence_scores = Variable(sequence_scores)
 
         # Initialize the input vector
-        input_var = Variable(torch.transpose(torch.LongTensor([[self.SOS] * batch_size * self.k]), 0, 1))
-        
+        input_var = torch.LongTensor([[self.SOS] * batch_size * self.k]).transpose(0, 1)
+
         # Assign all vars to CUDA if available
         if CUDA:
             self.pos_index = self.pos_index.cuda()
@@ -141,7 +141,8 @@ class TopKDecoder(torch.nn.Module):
             if retain_output_probs:
                 stored_outputs.append(log_softmax_output)
 
-            # To get the full sequence scores for the new candidates, add the local scores for t_i to the predecessor scores for t_(i-1)
+            # To get the full sequence scores for the new candidates,
+            # add the local scores for t_i to the predecessor scores for t_(i-1)
             sequence_scores = _inflate(sequence_scores, self.V, 1)
             sequence_scores += log_softmax_output.squeeze(1)
             scores, candidates = sequence_scores.view(batch_size, -1).topk(self.k, dim=1)
@@ -151,7 +152,7 @@ class TopKDecoder(torch.nn.Module):
             sequence_scores = scores.view(batch_size * self.k, 1)
 
             # Update fields for next timestep
-            predecessors = (candidates / self.V + self.pos_index.expand_as(candidates)).view(batch_size * self.k, 1)
+            predecessors = (candidates // self.V + self.pos_index.expand_as(candidates)).view(batch_size * self.k, 1)
             if isinstance(hidden, tuple):
                 hidden = tuple([h.index_select(1, predecessors.squeeze()) for h in hidden])
             else:
@@ -239,7 +240,7 @@ class TopKDecoder(torch.nn.Module):
             if CUDA:
                 h_n = h_n.cuda()
         l = [[self.rnn.max_length] * self.k for _ in range(b)]  # Placeholder for lengths of top-k sequences
-                                                                # Similar to `h_n`
+        # Similar to `h_n`
 
         # the last step output of the beams are not sorted
         # thus they are sorted here
@@ -247,8 +248,8 @@ class TopKDecoder(torch.nn.Module):
         # initialize the sequence scores with the sorted last step beam scores
         s = sorted_score.clone()
 
-        batch_eos_found = [0] * b   # the number of EOS found
-                                    # in the backward loop below for each batch
+        batch_eos_found = [0] * b  # the number of EOS found
+        # in the backward loop below for each batch
 
         t = self.rnn.max_length - 1
         # initialize the back pointer with the sorted order of the last step beams.
@@ -264,7 +265,7 @@ class TopKDecoder(torch.nn.Module):
             current_symbol = symbols[t].index_select(0, t_predecessors)
             # Re-order the back pointer of the previous step with the back pointer of
             # the current step
-            t_predecessors = predecessors[t].index_select(0, t_predecessors).squeeze()
+            t_predecessors = predecessors[t].index_select(0, t_predecessors).view(b * self.k)
 
             # This tricky block handles dropped sequences that see EOS earlier.
             # The basic idea is summarized below:
@@ -285,12 +286,12 @@ class TopKDecoder(torch.nn.Module):
             #
             eos_indices = symbols[t].data.squeeze(1).eq(self.EOS).nonzero()
             if eos_indices.dim() > 0:
-                for i in range(eos_indices.size(0)-1, -1, -1):
+                for i in range(eos_indices.size(0) - 1, -1, -1):
                     # Indices of the EOS symbol for both variables
                     # with b*k as the first dimension, and b, k for
                     # the first two dimensions
                     idx = eos_indices[i]
-                    b_idx = int(idx[0] / self.k)
+                    b_idx = idx[0] // self.k
                     # The indices of the replacing position
                     # according to the replacement strategy noted above
                     res_k_idx = self.k - (batch_eos_found[b_idx] % self.k) - 1
@@ -324,7 +325,7 @@ class TopKDecoder(torch.nn.Module):
         # the order (very unlikely)
         s, re_sorted_idx = s.topk(self.k)
         for b_idx in range(b):
-            l[b_idx] = [l[b_idx][k_idx.item()] for k_idx in re_sorted_idx[b_idx,:]]
+            l[b_idx] = [l[b_idx][k_idx.item()] for k_idx in re_sorted_idx[b_idx, :]]
 
         re_sorted_idx = (re_sorted_idx + self.pos_index.expand_as(re_sorted_idx)).view(b * self.k)
 
@@ -333,7 +334,8 @@ class TopKDecoder(torch.nn.Module):
         output = [step.index_select(0, re_sorted_idx).view(b, self.k, -1) for step in reversed(output)]
         p = [step.index_select(0, re_sorted_idx).view(b, self.k, -1) for step in reversed(p)]
         if lstm:
-            h_t = [tuple([h.index_select(1, re_sorted_idx).view(-1, b, self.k, hidden_size) for h in step]) for step in reversed(h_t)]
+            h_t = [tuple([h.index_select(1, re_sorted_idx).view(-1, b, self.k, hidden_size) for h in step]) for step in
+                   reversed(h_t)]
             h_n = tuple([h.index_select(1, re_sorted_idx.data).view(-1, b, self.k, hidden_size) for h in h_n])
         else:
             h_t = [step.index_select(1, re_sorted_idx).view(-1, b, self.k, hidden_size) for step in reversed(h_t)]
@@ -343,11 +345,9 @@ class TopKDecoder(torch.nn.Module):
         return output, h_t, h_n, s, l, p
 
     def _mask_symbol_scores(self, score, idx, masking_score=-float('inf')):
-            score[idx] = masking_score
+        score[idx] = masking_score
 
     def _mask(self, tensor, idx, dim=0, masking_score=-float('inf')):
         if len(idx.size()) > 0:
             indices = idx[:, 0]
             tensor.index_fill_(dim, indices, masking_score)
-
-

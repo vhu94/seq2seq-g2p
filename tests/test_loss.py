@@ -4,12 +4,14 @@ import unittest
 
 import torch
 import torch.nn.functional as F
-from torch.autograd import Variable
 import torchtext
+
+from torch.autograd import Variable
 
 from seq2seq.loss.loss import Loss
 from seq2seq.loss import NLLLoss, Perplexity
 from seq2seq.data import Seq2SeqDataset
+
 
 class TestLoss(unittest.TestCase):
     @classmethod
