@@ -7,6 +7,7 @@ import numpy as np
 
 from .. import tgt_field_name
 
+
 class Loss(object):
     """ Base class for encapsulation of the loss functions.
 
@@ -91,6 +92,7 @@ class Loss(object):
             raise ValueError("No loss to back propagate.")
         self.acc_loss.backward()
 
+
 class NLLLoss(Loss):
     """ Batch averaged negative log-likelihood loss.
 
@@ -121,10 +123,11 @@ class NLLLoss(Loss):
     def get_loss(self):
         if isinstance(self.acc_loss, int):
             return 0
-        loss = self.acc_loss.data.item()    # total loss for all batches
+        loss = self.acc_loss.data.item()  # total loss for all batches
         if self.reduction == 'mean':
-            loss /= self.norm_term          # average loss per batch
+            loss /= self.norm_term  # average loss per batch
         return loss
+
 
 class Perplexity(NLLLoss):
     """ Language model perplexity loss.

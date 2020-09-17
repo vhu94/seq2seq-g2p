@@ -83,6 +83,11 @@ class Checkpoint(object):
         return path
 
     @classmethod
+    def load_latest(cls, experiment_path):
+        path = cls.load_latest(experiment_path)
+        return cls.load(path)
+
+    @classmethod
     def load(cls, path):
         """
         Loads a Checkpoint object that was previously saved to disk.

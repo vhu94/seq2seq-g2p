@@ -2,6 +2,8 @@ from __future__ import division
 import logging
 import os
 import random
+from pathlib import Path
+from typing import Union
 
 import torch
 import torchtext
@@ -9,12 +11,19 @@ from torch import optim
 from tqdm import tqdm
 
 import seq2seq
+from seq2seq.data import Seq2SeqDataset
 from seq2seq.evaluator import Evaluator
-from seq2seq.loss import NLLLoss
+from seq2seq.loss import NLLLoss, Loss
+from seq2seq.models import Seq2seq
 from seq2seq.optim import Optimizer
 from seq2seq.util import Checkpoint
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_checkpoint(checkpoint, data):
+    assert checkpoint.input_vocab == data.src_field.vocab and checkpoint.output_vocab == data.tgt_field.vocab, \
+        'Mismatching input and output vocab found for loaded checkpoint versus data set.'
 
 
 class SupervisedTrainer(object):
@@ -27,27 +36,38 @@ class SupervisedTrainer(object):
         batch_size (int, optional): batch size for experiment
         checkpoint_every (int, optional): number of batches to checkpoint after
     """
-    def __init__(self, experiment_directory='./experiment', loss=None, batch_size=64,
-                random_seed=None, checkpoint_every=100, print_every=100):
-        if loss is None:
-            loss = NLLLoss()
+
+    def __init__(self,
+                 experiment_directory: Union[str, Path] = './experiment',
+                 loss: Loss = NLLLoss(),
+                 batch_size: int = 64,
+                 random_seed: int = None,
+                 checkpoint_every: int = 100,
+                 print_every: int = 100):
         if random_seed is not None:
             random.seed(random_seed)
             torch.manual_seed(random_seed)
 
         self.loss = loss
-        self.evaluator = Evaluator(loss=self.loss, batch_size=batch_size)
+        self.batch_size = batch_size
+        self.evaluator = Evaluator(loss=self.loss, batch_size=self.batch_size)
         self.optimizer = None
+
         self.checkpoint_every = checkpoint_every
         self.print_every = print_every
-        self.batch_size = batch_size
         self.experiment_directory = experiment_directory
 
-        if not os.path.exists(self.experiment_directory):
+        if not Path(self.experiment_directory).exists():
             os.makedirs(self.experiment_directory)
 
-    def train(self, model, data, n_epochs=5, resume=False,
-            dev_data=None, optimizer=None, teacher_forcing_ratio=0):
+    def train(self,
+              model: Seq2seq,
+              data: Seq2SeqDataset,
+              n_epochs: int = 5,
+              resume: bool = False,
+              dev_data: Seq2SeqDataset = None,
+              optimizer: Optimizer = None,
+              teacher_forcing_ratio: int = 0):
         """Train a given model.
 
         Args:
@@ -64,40 +84,42 @@ class SupervisedTrainer(object):
             model (seq2seq.models): trained model.
         """
         if resume:
-            latest_checkpoint_path = Checkpoint.get_latest_checkpoint(
-                self.experiment_directory)
-            resume_checkpoint = Checkpoint.load(latest_checkpoint_path)
+            resume_checkpoint = Checkpoint.load_latest(self.experiment_directory)
             model = resume_checkpoint.model
-            self.optimizer = resume_checkpoint.optimizer
-
-            # A work-around to set optimizing parameters properly
-            resume_optim = self.optimizer.optimizer
-            defaults = resume_optim.param_groups[0]
-            defaults.pop('params', None)
-            defaults.pop('initial_lr', None)
-            self.optimizer.optimizer = resume_optim.__class__(
-                model.parameters(), **defaults)
-
             start_epoch = resume_checkpoint.epoch
             step = resume_checkpoint.step
         else:
             start_epoch = 1
             step = 0
-            if optimizer is None:
-                optimizer = Optimizer(
-                    optim.Adam(model.parameters()), max_grad_norm=5)
-            self.optimizer = optimizer
+
+        self._init_optimizer(model, optimizer, resume)
 
         logger.info('Optimizer: %s, Scheduler: %s',
                     self.optimizer.optimizer, self.optimizer.scheduler)
 
-        self._train_epochs(data, model, n_epochs, 
-                            start_epoch, step, dev_data=dev_data, 
-                            teacher_forcing_ratio=teacher_forcing_ratio)
+        self._train_epochs(data, model, n_epochs,
+                           start_epoch, step, dev_data=dev_data,
+                           teacher_forcing_ratio=teacher_forcing_ratio)
         return model
 
-    def _train_epochs(self, data, model, n_epochs, start_epoch, 
-                    start_step, dev_data=None, teacher_forcing_ratio=0):
+    def _init_optimizer(self, model: Seq2seq, optimizer: Union[Optimizer, None], resume: bool):
+        if optimizer is None:
+            self.optimizer = Optimizer(optim.Adam(model.parameters()), max_grad_norm=5)
+        elif resume:
+            # A work-around to set optimizing parameters properly
+            self.optimizer = optimizer
+
+            resume_optim = self.optimizer.optimizer
+            defaults = resume_optim.param_groups[0]
+            defaults.pop('params', None)
+            defaults.pop('initial_lr', None)
+
+            self.optimizer.optimizer = resume_optim.__class__(model.parameters(), **defaults)
+        else:
+            self.optimizer = optimizer
+
+    def _train_epochs(self, data, model, n_epochs, start_epoch,
+                      start_step, dev_data=None, teacher_forcing_ratio=0):
         print_loss_total = epoch_loss_total = 0
         device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -144,7 +166,7 @@ class SupervisedTrainer(object):
                 epoch_loss_total += loss
 
                 if step % self.print_every == 0 \
-                   and step_elapsed > self.print_every:
+                        and step_elapsed > self.print_every:
                     print_loss_avg = print_loss_total / self.print_every
                     print_loss_total = 0
                     progress_bar.set_description('Train {}: {:.4f}'.format(

@@ -1,25 +1,31 @@
-import codecs
 from collections import Counter
 
-import torch
 import torchtext
 
 from . import SourceField, TargetField
 from .. import src_field_name, tgt_field_name
 
+
 def make_example(line, fields):
     pass
 
+
 def _read_corpus(path):
-    with codecs.open(path, 'r', 'utf-8') as fin:
+    with open(path, 'r', encoding='utf-8') as fin:
         for line in fin:
             yield line
+
+
+def _read_examples(path, delimiter=','):
+    with open(path, 'r', encoding='utf-8') as fin:
+        for line in fin:
+            yield line.split(delimiter)
+
 
 class Seq2SeqDataset(torchtext.data.Dataset):
     """ The idea of dynamic vocabulary is bought from [Opennmt-py](https://github.com/OpenNMT/OpenNMT-py)"""
 
     def __init__(self, examples, src_field, tgt_field=None, dynamic=True, **kwargs):
-
         # construct fields
         self.src_field = src_field
         self.tgt_field = tgt_field
@@ -43,11 +49,10 @@ class Seq2SeqDataset(torchtext.data.Dataset):
         examples = [torchtext.data.Example.fromlist(list(data) + [i], self.fields)
                     for i, data in enumerate(examples)]
 
-
         super(Seq2SeqDataset, self).__init__(examples, self.fields, **kwargs)
 
     def _add_dynamic_vocab(self, examples):
-        tokenize = self.fields[0][1].tokenize # Tokenize function of the source field
+        tokenize = self.fields[0][1].tokenize  # Tokenize function of the source field
         for example in examples:
             src_seq = tokenize(example[0])
             dy_vocab = torchtext.vocab.Vocab(Counter(src_seq), specials=[])
@@ -66,19 +71,22 @@ class Seq2SeqDataset(torchtext.data.Dataset):
         return Seq2SeqDataset.from_list(src_list, tgt_list, share_fields_from, **kwargs)
 
     @staticmethod
+    def from_tsv(data_path, delimiter='\t', share_fields_from=None, **kwargs):
+        examples = _read_examples(data_path, delimiter=delimiter)
+        src_field = SourceField() if share_fields_from is None else share_fields_from.fields[src_field_name]
+        tgt_field = TargetField() if share_fields_from is None else share_fields_from.fields[tgt_field_name]
+
+        return Seq2SeqDataset(examples, src_field, tgt_field, kwargs)
+
+    @staticmethod
     def from_list(src_list, tgt_list=None, share_fields_from=None, **kwargs):
         corpus = src_list
-        if share_fields_from is not None:
-            src_field = share_fields_from.fields[src_field_name]
-        else:
-            src_field = SourceField()
+        src_field = SourceField() if share_fields_from is None else share_fields_from.fields[src_field_name]
         tgt_field = None
         if tgt_list is not None:
             corpus = zip(corpus, tgt_list)
-            if share_fields_from is not None:
-                tgt_field = share_fields_from.fields[tgt_field_name]
-            else:
-                tgt_field = TargetField()
+            tgt_field = TargetField() if share_fields_from is None else share_fields_from.fields[tgt_field_name]
+
         return Seq2SeqDataset(corpus, src_field, tgt_field, **kwargs)
 
     def build_vocab(self, src_vocab_size, tgt_vocab_size):
