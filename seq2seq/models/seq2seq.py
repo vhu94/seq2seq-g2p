@@ -2,6 +2,7 @@ import torch.nn as nn
 
 from .. import src_field_name, tgt_field_name
 
+
 class Seq2seq(nn.Module):
     """ Standard sequence-to-sequence architecture with configurable encoder
     and decoder.
@@ -57,3 +58,6 @@ class Seq2seq(nn.Module):
                               dataset=dataset,
                               teacher_forcing_ratio=teacher_forcing_ratio)
         return result
+
+    def trainable_parameters(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)

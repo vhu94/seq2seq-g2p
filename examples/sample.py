@@ -212,7 +212,7 @@ def initialize_model(
         hidden_size * (2 if bidirectional else 1),
         dropout_p=dropout_p,
         use_attention=True,
-        bidirectional=bidirectional,
+        bidirectional_encoder=bidirectional,
         eos_id=train.tgt_field.eos_id,
         sos_id=train.tgt_field.sos_id,
     )

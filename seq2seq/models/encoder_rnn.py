@@ -1,6 +1,8 @@
 import torch.nn as nn
+from torch import Tensor
 
 from .base_rnn import BaseRNN
+
 
 class EncoderRNN(BaseRNN):
     r"""
@@ -37,19 +39,37 @@ class EncoderRNN(BaseRNN):
 
     """
 
-    def __init__(self, vocab_size, max_len, hidden_size, input_dropout_p=0, 
-                 dropout_p=0, n_layers=1, bidirectional=False, rnn_cell='gru', 
-                 variable_lengths=False, embedding=None, update_embedding=True):
-        super(EncoderRNN, self).__init__(vocab_size, max_len, hidden_size,
-                input_dropout_p, dropout_p, n_layers, rnn_cell)
+    def __init__(self,
+                 vocab_size: int,
+                 max_len: int,
+                 hidden_size: int,
+                 input_dropout_p: float = 0,
+                 dropout_p: float = 0,
+                 n_layers: int = 1,
+                 bidirectional: bool = False,
+                 rnn_cell: str = 'gru',
+                 variable_lengths: bool = False,
+                 embedding: Tensor = None,
+                 update_embedding: bool = True):
+        super(EncoderRNN, self).__init__(vocab_size,
+                                         max_len,
+                                         hidden_size,
+                                         input_dropout_p,
+                                         dropout_p,
+                                         n_layers,
+                                         rnn_cell)
 
         self.variable_lengths = variable_lengths
         self.embedding = nn.Embedding(self.vocab_size, self.hidden_size)
         if embedding is not None:
             self.embedding.weight = nn.Parameter(embedding)
         self.embedding.weight.requires_grad = update_embedding
-        self.rnn = self.rnn_cell(self.hidden_size, self.hidden_size, self.n_layers, batch_first=True, 
-                                 bidirectional=bidirectional, dropout=self.dropout_p)
+        self.rnn = self.rnn_cell(self.hidden_size,
+                                 self.hidden_size,
+                                 self.n_layers,
+                                 batch_first=True,
+                                 bidirectional=bidirectional,
+                                 dropout=self.dropout_p)
 
     def forward(self, input_var, input_lengths=None):
         """

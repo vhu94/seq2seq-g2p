@@ -9,6 +9,7 @@ from .dot_attention import DotAttention
 from .base_rnn import BaseRNN
 from .simple_decoder import SimpleDecoder
 
+
 class DecoderRNN(BaseRNN):
     r"""
     Provides functionality for decoding in a seq2seq framework, with an option for attention.
@@ -21,7 +22,7 @@ class DecoderRNN(BaseRNN):
         eos_id (int): index of the end of sentence symbol
         n_layers (int, optional): number of recurrent layers (default: 1)
         rnn_cell (str, optional): type of RNN cell (default: gru)
-        bidirectional (bool, optional): if the encoder is bidirectional (default: False)
+        bidirectional_encoder (bool, optional): if the encoder is bidirectional (default: False)
         input_dropout_p (float, optional): dropout probability for the input sequence (default: 0)
         dropout_p (float, optional): dropout probability for the output sequence (default: 0)
         use_attention(bool, optional): flag indication whether to use attention mechanism or not (default: false)
@@ -56,14 +57,32 @@ class DecoderRNN(BaseRNN):
     KEY_LENGTH = 'length'
     KEY_SEQUENCE = 'sequence'
 
-    def __init__(self, vocab_size, max_len, hidden_size, sos_id, eos_id,
-                 n_layers=1, rnn_cell='gru', bidirectional=False,
-                 input_dropout_p=0, dropout_p=0, use_attention=False):
-        super(DecoderRNN, self).__init__(vocab_size, max_len, hidden_size,
-                input_dropout_p, dropout_p, n_layers, rnn_cell)
+    def __init__(self,
+                 vocab_size: int,
+                 max_len: int,
+                 hidden_size: int,
+                 sos_id: int,
+                 eos_id: int,
+                 n_layers: int = 1,
+                 rnn_cell: str = 'gru',
+                 bidirectional_encoder: bool = False,
+                 input_dropout_p: float = 0,
+                 dropout_p: float = 0,
+                 use_attention: bool = False):
+        super(DecoderRNN, self).__init__(vocab_size,
+                                         max_len,
+                                         hidden_size,
+                                         input_dropout_p,
+                                         dropout_p,
+                                         n_layers,
+                                         rnn_cell)
 
-        self.bidirectional_encoder = bidirectional
-        self.rnn = self.rnn_cell(self.hidden_size, self.hidden_size, self.n_layers, batch_first=True, dropout=self.dropout_p)
+        self.bidirectional_encoder = bidirectional_encoder
+        self.rnn = self.rnn_cell(self.hidden_size,
+                                 self.hidden_size,
+                                 self.n_layers,
+                                 batch_first=True,
+                                 dropout=self.dropout_p)
 
         self.output_size = vocab_size
         self.max_length = max_len
@@ -201,6 +220,6 @@ class DecoderRNN(BaseRNN):
                 inputs = inputs.cuda()
             max_length = self.max_length
         else:
-            max_length = inputs.size(1) - 1 # minus the start of sequence symbol
+            max_length = inputs.size(1) - 1  # minus the start of sequence symbol
 
         return inputs, batch_size, max_length

@@ -4,12 +4,12 @@ import logging
 import torch
 
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Union
 
-from torchtext.data import Field
+from hparams import get_hparams, Hparams
+from utils import setup_logging, set_random
 
-from seq2seq.data import Seq2SeqDataset
-from .utils import setup_logging
+from seq2seq.data import Seq2SeqDataset, TargetField, SourceField
 from seq2seq.trainer import SupervisedTrainer
 from seq2seq.models import (
     EncoderRNN,
@@ -17,9 +17,6 @@ from seq2seq.models import (
     Seq2seq,
 )
 from seq2seq.loss import Perplexity, NLLLoss
-
-from hparams import get_hparams, Hparams
-from seq2seq.util.utils import set_random
 
 
 def arg_parser():
@@ -45,7 +42,8 @@ def arg_parser():
     parser.add_argument('--patience',
                         type=int,
                         default=-1,
-                        help='whether or not to stop training early if no improvements observed')
+                        help='The number of epochs to continue training without observing improvement. '
+                             'If set to -1, training continues for the maximum number of epochs.')
     parser.add_argument('--checkpoint',
                         action='store',
                         dest='checkpoint',
@@ -61,7 +59,7 @@ def arg_parser():
                         help='Number of training steps between checkpoint saves')
     parser.add_argument('--log_level',
                         dest='log_level',
-                        default='INFO',
+                        default='info',
                         help='Logging level')
     parser.add_argument('--log_file',
                         dest='log_file',
@@ -70,29 +68,27 @@ def arg_parser():
     return parser
 
 
-def init_model(src: Field, tgt: Field, hparams: Hparams) -> Seq2seq:
+def init_model(src: SourceField, tgt: TargetField, hparams: Hparams) -> Seq2seq:
     encoder = EncoderRNN(vocab_size=len(src.vocab),
                          max_len=hparams.max_sequence_length,
                          hidden_size=hparams.encoder_hidden_size,
-                         embed_dim=hparams.encoder_embed_dim - hparams.input_flag_dim,
                          bidirectional=hparams.bidirectional_encoder,
                          dropout_p=hparams.encoder_dropout,
                          input_dropout_p=hparams.encoder_input_dropout,
                          rnn_cell=hparams.encoder_rnn_cell,
                          n_layers=hparams.n_encoder_layers,
-                         variable_lengths=True,
-                         flag_dim=hparams.input_flag_dim)
+                         variable_lengths=True)
     decoder = DecoderRNN(vocab_size=len(tgt.vocab),
                          max_len=hparams.max_sequence_length,
                          hidden_size=hparams.decoder_hidden_size,
-                         embed_dim=hparams.decoder_embed_dim,
                          n_layers=hparams.n_decoder_layers,
                          dropout_p=hparams.decoder_dropout,
                          input_dropout_p=hparams.decoder_input_dropout,
                          bidirectional_encoder=hparams.bidirectional_encoder,
                          rnn_cell=hparams.decoder_rnn_cell,
                          eos_id=tgt.eos_id,
-                         sos_id=tgt.sos_id)
+                         sos_id=tgt.sos_id,
+                         use_attention=hparams.use_attention)
     seq2seq = Seq2seq(encoder, decoder)
     if torch.cuda.is_available():
         seq2seq.cuda()
@@ -103,7 +99,7 @@ def init_model(src: Field, tgt: Field, hparams: Hparams) -> Seq2seq:
     return seq2seq
 
 
-def prepare_loss(tgt: Field, loss_type: str = 'perplexity') -> NLLLoss:
+def prepare_loss(tgt: TargetField, loss_type: str = 'perplexity') -> NLLLoss:
     weight = torch.ones(len(tgt.vocab))
     pad = tgt.vocab.stoi[tgt.pad_token]
 
@@ -124,8 +120,9 @@ def train(opts: argparse.Namespace, hparams: Hparams, model_dir: Union[str, Path
     set_random(opts.seed)
 
     # Prepare dataset
-    train = Seq2SeqDataset.from_tsv(opts.train)
-    dev = Seq2SeqDataset.from_tsv(opts.dev, share_fields_from=train) if opts.dev else None
+    train = Seq2SeqDataset.from_example_file(opts.train)
+    train.build_vocab(50000, 50000)
+    dev = Seq2SeqDataset.from_example_file(opts.dev, share_fields_from=train) if opts.dev else None
     src = train.src_field
     tgt = train.tgt_field
 

@@ -38,7 +38,7 @@ class SupervisedTrainer(object):
     """
 
     def __init__(self,
-                 experiment_directory: Union[str, Path] = './experiment',
+                 experiment_directory: Union[str, Path] = './experiments',
                  loss: Loss = NLLLoss(),
                  batch_size: int = 64,
                  random_seed: int = None,
@@ -67,7 +67,7 @@ class SupervisedTrainer(object):
               resume: bool = False,
               dev_data: Seq2SeqDataset = None,
               optimizer: Optimizer = None,
-              teacher_forcing_ratio: int = 0):
+              teacher_forcing_ratio: float = 0):
         """Train a given model.
 
         Args:

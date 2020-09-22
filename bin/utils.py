@@ -1,9 +1,19 @@
 import logging
 import os
+import random
 import sys
+import torch
+
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Union
+
+
+def set_random(seed):
+    if seed:
+        logging.debug(f'Setting random seed to {seed}')
+        random.seed(seed)
+        torch.manual_seed(seed)
 
 
 def setup_logging(log_level: Union[int, str], logfile: Union[str, Path] = None):
