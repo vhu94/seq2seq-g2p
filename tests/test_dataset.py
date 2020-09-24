@@ -13,7 +13,7 @@ from seq2seq.data import Seq2SeqDataset, SourceField, TargetField
 
 
 class TestDataset(unittest.TestCase):
-    data_path = Path().absolute() / 'data'
+    data_path = Path(__file__).parent / 'data'
 
     src_path = data_path / 'src.txt'
     tgt_path = data_path / 'tgt.txt'
