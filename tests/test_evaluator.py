@@ -11,7 +11,7 @@ from seq2seq.evaluator import Evaluator
 from seq2seq.models import Seq2seq, EncoderRNN, DecoderRNN
 
 
-class TestPredictor(unittest.TestCase):
+class TestEvaluator(unittest.TestCase):
 
     def setUp(self):
         test_path = os.path.dirname(os.path.realpath(__file__))

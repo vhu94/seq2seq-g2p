@@ -1,7 +1,7 @@
 import torchtext
 
 from collections import Counter
-from typing import Generator, List, Tuple, Union, Iterable
+from typing import Generator, List, Tuple, Union, Iterable, Dict
 
 from . import SourceField, TargetField
 from .. import src_field_name, tgt_field_name, index_field_name, src_idx_field_name
@@ -132,7 +132,7 @@ class Seq2SeqDataset(torchtext.data.Dataset):
     @staticmethod
     def from_file(src_path: str,
                   tgt_path: str = None,
-                  share_fields_from: torchtext.data.Dataset = None,
+                  share_fields_from: Dict[str, torchtext.data.Field] = None,
                   **kwargs):
         r"""
         Initializes a new :class:`Seq2SeqDataset` from a source file and a target file (optional)
@@ -140,7 +140,7 @@ class Seq2SeqDataset(torchtext.data.Dataset):
         Args:
             src_path (str): path to source data file
             tgt_path (str, optional): path to target data file (default: None)
-            share_fields_from (torchtext.data.Dataset, optional): use source and target Fields from existing dataset
+            share_fields_from (Dict[str, torchtext.data.Field], optional): use existing source and target Fields
                 if given (default: None)
             **kwargs: additional arguments to pass to :class:`torchtext.data.Dataset` init
 
@@ -155,7 +155,7 @@ class Seq2SeqDataset(torchtext.data.Dataset):
     @staticmethod
     def from_example_file(data_path: str,
                           delimiter: str = '\t',
-                          share_fields_from: torchtext.data.Dataset = None,
+                          share_fields_from: Dict[str, torchtext.data.Field] = None,
                           **kwargs):
         r"""
         Initializes a new :class:`Seq2SeqDataset` from a delimiter-separated data file, e.g. TSV or CSV.
@@ -165,7 +165,7 @@ class Seq2SeqDataset(torchtext.data.Dataset):
         Args:
             data_path (str): path to example data file
             delimiter (str, optional): boundary character between fields (default: '\t')
-            share_fields_from (torchtext.data.Dataset, optional): use source and target Fields from existing dataset
+            share_fields_from (Dict[str, torchtext.data.Field], optional): use existing source and target Fields
                 if given (default: None)
             **kwargs: additional arguments to pass to :class:`torchtext.data.Dataset` init
 
@@ -173,15 +173,15 @@ class Seq2SeqDataset(torchtext.data.Dataset):
             a :class:`Seq2SeqDataset` object
         """
         examples = _read_examples(data_path, delimiter=delimiter)
-        src_field = SourceField() if share_fields_from is None else share_fields_from.fields[src_field_name]
-        tgt_field = TargetField() if share_fields_from is None else share_fields_from.fields[tgt_field_name]
+        src_field = SourceField() if share_fields_from is None else share_fields_from[src_field_name]
+        tgt_field = TargetField() if share_fields_from is None else share_fields_from[tgt_field_name]
 
         return Seq2SeqDataset(examples, src_field, tgt_field, **kwargs)
 
     @staticmethod
     def from_list(src_list: Iterable[Union[str, List, Tuple]],
                   tgt_list: Iterable[Union[str, List, Tuple]] = None,
-                  share_fields_from: torchtext.data.Dataset = None,
+                  share_fields_from: Dict[str, torchtext.data.Field] = None,
                   **kwargs):
         r"""
         Initializes a new :class:`Seq2SeqDataset` from a list or iterable of source and target (optional) sequences
@@ -189,17 +189,17 @@ class Seq2SeqDataset(torchtext.data.Dataset):
         Args:
             src_list (Iterable[Union[str, List, Tuple]]): source sequences
             tgt_list (Iterable[Union[str, List, Tuple]], optional): target sequences (default: None)
-            share_fields_from (torchtext.data.Dataset, optional): use source and target Fields from existing dataset
+            share_fields_from (Dict[str, torchtext.data.Field], optional): use existing source and target Fields
                 if given (default: None)
             **kwargs: additional arguments to pass to :class:`torchtext.data.Dataset` init
 
         Returns:
             a :class:`Seq2SeqDataset` object
         """
-        src_field = SourceField() if share_fields_from is None else share_fields_from.fields[src_field_name]
+        src_field = SourceField() if share_fields_from is None else share_fields_from[src_field_name]
         tgt_field = None
         if tgt_list is not None:
-            tgt_field = TargetField() if share_fields_from is None else share_fields_from.fields[tgt_field_name]
+            tgt_field = TargetField() if share_fields_from is None else share_fields_from[tgt_field_name]
             return Seq2SeqDataset(zip(src_list, tgt_list), src_field, tgt_field, **kwargs)
 
         return Seq2SeqDataset(zip(src_list), src_field, tgt_field, **kwargs)

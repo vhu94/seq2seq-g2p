@@ -7,8 +7,6 @@ from pathlib import Path
 from typing import Union
 
 from hparams import get_hparams, Hparams
-from utils import setup_logging, set_random
-
 from seq2seq.data import Seq2SeqDataset, TargetField, SourceField
 from seq2seq.trainer import SupervisedTrainer
 from seq2seq.models import (
@@ -17,6 +15,7 @@ from seq2seq.models import (
     Seq2seq,
 )
 from seq2seq.loss import Perplexity, NLLLoss
+from utils import setup_logging, set_random
 
 
 def arg_parser():
@@ -61,8 +60,8 @@ def arg_parser():
                         dest='log_level',
                         default='info',
                         help='Logging level')
-    parser.add_argument('--log_file',
-                        dest='log_file',
+    parser.add_argument('--logfile',
+                        dest='logfile',
                         help='Path to log file')
 
     return parser
@@ -122,7 +121,7 @@ def train(opts: argparse.Namespace, hparams: Hparams, model_dir: Union[str, Path
     # Prepare dataset
     train = Seq2SeqDataset.from_example_file(opts.train)
     train.build_vocab(50000, 50000)
-    dev = Seq2SeqDataset.from_example_file(opts.dev, share_fields_from=train) if opts.dev else None
+    dev = Seq2SeqDataset.from_example_file(opts.dev, share_fields_from=train.fields) if opts.dev else None
     src = train.src_field
     tgt = train.tgt_field
 
@@ -161,7 +160,7 @@ if __name__ == '__main__':
     hparams = get_hparams()
 
     # Set up logging
-    setup_logging(args.log_level.upper(), args.log_file)
+    setup_logging(args.log_level.upper(), args.logfile)
     logging.info(args)
 
     # Start training
