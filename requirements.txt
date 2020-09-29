@@ -5,3 +5,4 @@ dill==0.2.8.2
 tqdm==4.46.0
 torchtext==0.5.0
 parameterized==0.7.4
+edit-distance==1.0.4
