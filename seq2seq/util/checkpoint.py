@@ -84,7 +84,7 @@ class Checkpoint(object):
 
     @classmethod
     def load_latest(cls, experiment_path):
-        path = cls.load_latest(experiment_path)
+        path = cls.get_latest_checkpoint(experiment_path)
         return cls.load(path)
 
     @classmethod

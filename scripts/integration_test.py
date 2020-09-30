@@ -1,11 +1,12 @@
-import os
 import time
 import argparse
 import logging
 
 import torch
 
-import seq2seq
+from pathlib import Path
+
+from seq2seq import src_field_name, tgt_field_name
 from seq2seq.trainer import SupervisedTrainer
 from seq2seq.models import EncoderRNN, DecoderRNN, TopKDecoder, Seq2seq
 from seq2seq.loss import Perplexity
@@ -13,34 +14,45 @@ from seq2seq.data import Seq2SeqDataset
 from seq2seq.evaluator import Predictor, Evaluator
 from seq2seq.util.checkpoint import Checkpoint
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--train_src', action='store', help='Path to train source data')
-parser.add_argument('--train_tgt', action='store', help='Path to train target data')
-parser.add_argument('--dev_src', action='store', help='Path to dev source data')
-parser.add_argument('--dev_tgt', action='store', help='Path to dev target data')
-parser.add_argument('--expt_dir', action='store', dest='expt_dir', default='./experiment',
-                    help='Path to experiment directory. If load_checkpoint is True, then path to checkpoint directory has to be provided')
-parser.add_argument('--load_checkpoint', action='store', dest='load_checkpoint',
-                    help='The name of the checkpoint to load, usually an encoded time string')
-parser.add_argument('--resume', action='store_true', dest='resume',
-                    default=False,
-                    help='Indicates if training has to be resumed from the latest checkpoint')
-parser.add_argument('--log-level', dest='log_level',
-                    default='info',
-                    help='Logging level.')
-
-opt = parser.parse_args()
-
 LOG_FORMAT = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
+
+
+def arg_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--train_src', action='store', help='Path to train source data')
+    parser.add_argument('--train_tgt', action='store', help='Path to train target data')
+    parser.add_argument('--dev_src', action='store', help='Path to dev source data')
+    parser.add_argument('--dev_tgt', action='store', help='Path to dev target data')
+    parser.add_argument('--expt_dir', action='store', dest='expt_dir', default='./experiment',
+                        help='Path to experiment directory. '
+                             'If load_checkpoint is True, then path to checkpoint directory has to be provided')
+    parser.add_argument('--load_checkpoint', action='store', dest='load_checkpoint',
+                        help='The name of the checkpoint to load, usually an encoded time string')
+    parser.add_argument('--resume', action='store_true', dest='resume',
+                        default=False,
+                        help='Indicates if training has to be resumed from the latest checkpoint')
+    parser.add_argument('--log-level', dest='log_level',
+                        default='info',
+                        help='Logging level.')
+
+    return parser
+
+
+opt = arg_parser().parse_args()
 logging.basicConfig(format=LOG_FORMAT, level=getattr(logging, opt.log_level.upper()))
 logging.info(opt)
 
 # Prepare dataset
 train = Seq2SeqDataset.from_file(opt.train_src, opt.train_tgt)
 train.build_vocab(50000, 50000)
-dev = Seq2SeqDataset.from_file(opt.dev_src, opt.dev_tgt, share_fields_from=train)
 input_vocab = train.src_field.vocab
 output_vocab = train.tgt_field.vocab
+dev = Seq2SeqDataset.from_file(opt.dev_src,
+                               opt.dev_tgt,
+                               share_fields_from={
+                                   src_field_name: train.src_field,
+                                   tgt_field_name: train.tgt_field
+                               })
 
 # Prepare loss
 weight = torch.ones(len(output_vocab))
@@ -50,8 +62,8 @@ if torch.cuda.is_available():
     loss.cuda()
 
 if opt.load_checkpoint is not None:
-    logging.info("loading checkpoint from {}".format(os.path.join(opt.expt_dir, Checkpoint.CHECKPOINT_DIR_NAME, opt.load_checkpoint)))
-    checkpoint_path = os.path.join(opt.expt_dir, Checkpoint.CHECKPOINT_DIR_NAME, opt.load_checkpoint)
+    checkpoint_path = Path(opt.expt_dir, Checkpoint.CHECKPOINT_DIR_NAME, opt.load_checkpoint)
+    logging.info(f'loading checkpoint from {checkpoint_path}')
     checkpoint = Checkpoint.load(checkpoint_path)
     seq2seq = checkpoint.model
     input_vocab = checkpoint.input_vocab
